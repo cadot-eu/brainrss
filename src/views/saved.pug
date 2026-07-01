@@ -1,0 +1,28 @@
+extends layout
+
+block content
+  .page-header
+    h2 Articles sauvegardés
+    p= articles.length + ' article(s) sauvegardé(s)'
+
+  if articles.length > 0
+    .articles-list
+      each article in articles
+        .article-item(data-article-id=article.id)
+          .article-item-header
+            .article-item-content
+              h3= article.title
+              p.article-meta
+                span.feed
+                  a(href=`/feed/${article.feedId}`)= article.feedTitle
+                if article.author
+                  span.author= article.author
+                span.date= new Date(article.pubDate).toLocaleDateString('fr-FR')
+              p.article-description= article.description ? article.description.substring(0, 150) + '...' : 'Pas de description'
+          .article-item-actions
+            button.btn.btn-small.btn-read(data-article-id=article.id) 📖 Lire
+            button.btn.btn-small.btn-summarize(data-article-id=article.id) 🤖 Résumé IA
+  else
+    .empty-state
+      p Aucun article sauvegardé
+      a.btn.btn-primary(href="/") Retour à l'accueil

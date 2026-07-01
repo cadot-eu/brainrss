@@ -1,0 +1,65 @@
+extends layout
+
+block content
+  .page-header
+    h2 Tous les flux
+    p Gérez et consultez vos flux RSS
+
+  if feeds.length > 0
+    .feeds-list
+      each feed in feeds
+        .feed-item
+          if feed.image
+            img.feed-item-image(src=feed.image alt=feed.title)
+          else
+            .feed-item-image-placeholder 📰
+          .feed-item-info
+            h3
+              a(href=`/feed/${feed.id}`)= feed.title
+            p.feed-url= feed.url
+            p.feed-description= feed.description
+          .feed-item-stats
+            span= feed.articleCount + ' articles'
+            if feed.unreadCount > 0
+              span.unread= feed.unreadCount + ' non lus'
+          .feed-item-actions
+            a.btn.btn-primary(href=`/feed/${feed.id}`) Consulter
+            button.btn.btn-secondary.btn-update(data-feed-id=feed.id) Actualiser
+            button.btn.btn-danger.btn-delete(data-feed-id=feed.id) Supprimer
+  else
+    .empty-state
+      p Aucun flux pour le moment
+      a.btn.btn-primary(href="/") Ajouter un flux
+
+block scripts
+  script.
+    document.querySelectorAll('.btn-update').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const feedId = btn.dataset.feedId;
+        btn.disabled = true;
+        btn.textContent = 'Actualisation...';
+        try {
+          await fetch(`/api/feeds/${feedId}/update`, { method: 'POST' });
+          alert('Flux actualisé!');
+          location.reload();
+        } catch (error) {
+          alert('Erreur: ' + error.message);
+          btn.disabled = false;
+          btn.textContent = 'Actualiser';
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce flux?')) {
+          const feedId = btn.dataset.feedId;
+          try {
+            await fetch(`/api/feeds/${feedId}`, { method: 'DELETE' });
+            location.reload();
+          } catch (error) {
+            alert('Erreur: ' + error.message);
+          }
+        }
+      });
+    });

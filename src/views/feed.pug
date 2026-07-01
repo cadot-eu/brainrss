@@ -1,0 +1,52 @@
+extends layout
+
+block content
+  .feed-page
+    .feed-header-section
+      if feed.image
+        img.feed-banner(src=feed.image alt=feed.title)
+      .feed-header-content
+        h2= feed.title
+        p.feed-description= feed.description
+        if feed.link
+          a.feed-link(href=feed.link target="_blank") Visiter le site
+        .feed-header-stats
+          span= feed.articleCount + ' articles'
+          if feed.unreadCount > 0
+            span.unread= feed.unreadCount + ' non lus'
+        .feed-header-actions
+          button.btn.btn-primary.btn-update(data-feed-id=feed.id) Actualiser
+          a.btn.btn-secondary(href="/feeds") Retour aux flux
+
+  .articles-section
+    if articles.length > 0
+      .articles-list
+        each article in articles
+          .article-item(data-article-id=article.id)
+            .article-item-header
+              .article-item-content
+                h3= article.title
+                p.article-meta
+                  if article.author
+                    span.author= article.author
+                  span.date= new Date(article.pubDate).toLocaleDateString('fr-FR')
+                p.article-description= article.description ? article.description.substring(0, 150) + '...' : 'Pas de description'
+            .article-item-actions
+              button.btn.btn-small.btn-read(data-article-id=article.id) 📖 Lire
+              button.btn.btn-small.btn-summarize(data-article-id=article.id) 🤖 Résumé IA
+    else
+      .empty-state
+        p Aucun article dans ce flux
+
+block scripts
+  script.
+    document.querySelector('.btn-update').addEventListener('click', async () => {
+      const feedId = '#{feed.id}';
+      try {
+        await fetch(`/api/feeds/${feedId}/update`, { method: 'POST' });
+        alert('Flux actualisé!');
+        location.reload();
+      } catch (error) {
+        alert('Erreur: ' + error.message);
+      }
+    });

@@ -1,0 +1,38 @@
+{
+  "name": "brainrss",
+  "version": "1.0.0",
+  "description": "Un clone moderne de BrainRSS utilisant Node.js, Fastify et Pug",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "build": "echo 'No build step needed'",
+    "lint": "eslint src --fix"
+  },
+  "keywords": [
+    "rss",
+    "reader",
+    "fastify",
+    "pug"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/static": "^6.12.0",
+    "@fastify/view": "^8.1.1",
+    "@mozilla/readability": "^0.6.0",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "fastify": "^4.26.1",
+    "jsdom": "^29.1.1",
+    "pug": "^3.0.2",
+    "rss-parser": "^3.13.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.6",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0"
+  }
+}

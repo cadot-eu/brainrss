@@ -1,0 +1,132 @@
+extends layout
+
+block content
+  .page-header
+    h2 Filtres de priorité
+    p Les articles dont le titre ou la description contiennent ces mots-clés gagnent en priorité (ou sont masqués).
+
+  .filters-page
+    .add-filter-section
+      h3 Ajouter un filtre
+      form#addFilterForm
+        .filter-form-row
+          input(type="text" name="keywords" placeholder="mot1, mot2, mot3" required)
+          select(name="action")
+            option(value="priority") Priorité +
+            option(value="hide") Masquer
+          input(type="number" name="priority" min="1" max="10" value="5")
+          button.btn.btn-primary(type="submit") Ajouter
+      #filterMessage
+
+    .filters-list-section
+      h3 Filtres actifs
+      if filters && filters.length > 0
+        #filtersList.filters-list-full
+          each f in filters
+            .filter-card(data-filter-id=f.id)
+              .filter-card-main
+                span.filter-keywords= f.keywords
+                span.filter-badge(class=f.action)= f.action === 'hide' ? '🚫 Masqué' : '🔥 Priorité +' + f.priority
+              .filter-card-meta
+                | Créé le #{new Date(f.createdAt).toLocaleDateString('fr-FR')}
+              button.btn.btn-small.btn-danger.filter-delete(data-filter-id=f.id) Supprimer
+      else
+        #filtersList.filters-list-full
+          .empty-state
+            p Aucun filtre pour le moment.
+            p Ajoutez des mots-clés ci-dessus pour booster (ou masquer) certains articles.
+
+block scripts
+  script.
+    const filterMessage = document.getElementById('filterMessage');
+    const filtersList = document.getElementById('filtersList');
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderFilterCard(f) {
+      const badgeText = f.action === 'hide' ? '🚫 Masqué' : '🔥 Priorité +' + f.priority;
+      const date = new Date(f.createdAt).toLocaleDateString('fr-FR');
+      return '<div class="filter-card" data-filter-id="' + f.id + '">' +
+        '<div class="filter-card-main">' +
+          '<span class="filter-keywords">' + escapeHtml(f.keywords) + '</span>' +
+          '<span class="filter-badge ' + f.action + '">' + badgeText + '</span>' +
+        '</div>' +
+        '<div class="filter-card-meta">Créé le ' + date + '</div>' +
+        '<button class="btn btn-small btn-danger filter-delete" data-filter-id="' + f.id + '">Supprimer</button>' +
+      '</div>';
+    }
+
+    function attachDeleteHandlers() {
+      filtersList.querySelectorAll('.filter-delete').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var id = this.dataset.filterId;
+          try {
+            await fetch('/api/filters/' + id, { method: 'DELETE' });
+            await refreshList();
+          } catch (err) {
+            filterMessage.innerHTML = '<p class="error">Erreur lors de la suppression.</p>';
+          }
+        });
+      });
+    }
+
+    async function refreshList() {
+      try {
+        var res = await fetch('/api/filters');
+        var filters = await res.json();
+        if (!filters || filters.length === 0) {
+          filtersList.innerHTML = '<div class="empty-state"><p>Aucun filtre pour le moment.</p><p>Ajoutez des mots-clés ci-dessus pour booster (ou masquer) certains articles.</p></div>';
+          return;
+        }
+        filtersList.innerHTML = filters.map(renderFilterCard).join('');
+        attachDeleteHandlers();
+      } catch (err) {
+        filtersList.innerHTML = '<p class="error">Erreur de chargement des filtres.</p>';
+      }
+    }
+
+    // Attacher handlers initiaux (rendu serveur)
+    attachDeleteHandlers();
+
+    // Formulaire d'ajout
+    document.getElementById('addFilterForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var form = e.target;
+      var keywords = form.querySelector('input[name="keywords"]').value.trim();
+      var action = form.querySelector('select[name="action"]').value;
+      var priority = parseInt(form.querySelector('input[name="priority"]').value);
+
+      if (!keywords) return;
+
+      var submitBtn = form.querySelector('button');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Ajout...';
+
+      try {
+        var res = await fetch('/api/filters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywords: keywords, action: action, priority: priority })
+        });
+        var data = await res.json();
+
+        if (data.success) {
+          filterMessage.innerHTML = '<p class="success">Filtre ajouté !</p>';
+          form.reset();
+          form.querySelector('input[name="priority"]').value = 5;
+          await refreshList();
+          setTimeout(function() { filterMessage.innerHTML = ''; }, 2000);
+        } else {
+          filterMessage.innerHTML = '<p class="error">Erreur: ' + (data.error || 'inconnue') + '</p>';
+        }
+      } catch (err) {
+        filterMessage.innerHTML = '<p class="error">Erreur réseau.</p>';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Ajouter';
+      }
+    });

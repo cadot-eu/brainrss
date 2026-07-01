@@ -1,0 +1,8 @@
+extends layout
+
+block content
+  .error-page
+    .error-content
+      h1 404
+      p= message || 'Page non trouvée'
+      a.btn.btn-primary(href="/") Retour à l'accueil

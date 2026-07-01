@@ -1,0 +1,26 @@
+x-common-opts: &common-opts
+  volumes:
+    - /etc/localtime:/etc/localtime:ro
+  environment:
+    - TZ=Europe/Paris
+  restart: unless-stopped
+
+services:
+  brainrss:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: brainrss
+    ports:
+      - 3000:3000
+    environment:
+      - NODE_ENV=development
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+    volumes:
+      - ./data:/app/data # Persistance de la base SQLite
+      - ./logs:/app/logs # Logs applicatifs
+      - ./config:/app/config # Fichiers de configuration
+      - ./src:/app/src # Code source (rechargement à chaud en dev)
+      - ./public:/app/public # Fichiers statiques (CSS, JS)
+      - ./.env:/app/.env # Clés API
+    command: npm run dev

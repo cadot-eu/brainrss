@@ -1,0 +1,51 @@
+extends layout
+
+block content
+  .hero
+    h2 Bienvenue dans BrainRSS
+    p Un lecteur RSS moderne et minimaliste
+
+    .add-feed-section
+      h3 Ajouter un nouveau flux
+      form#addFeedForm
+        input(type="url" placeholder="https://example.com/feed.xml" required)
+        button(type="submit") Ajouter
+      #feedMessage
+
+  .dashboard
+    .stats
+      .stat-card
+        .stat-number= feeds.length
+        .stat-label Flux
+      .stat-card
+        .stat-number= unreadCount
+        .stat-label Articles non lus
+      .stat-card
+        .stat-number= feeds.reduce((sum, f) => sum + (f.articleCount || 0), 0)
+        .stat-label Articles totaux
+
+  if feeds.length > 0
+    .feeds-grid
+      each feed in feeds
+        .feed-card
+          .feed-header
+            if feed.image
+              img.feed-image(src=feed.image alt=feed.title)
+            else
+              .feed-image-placeholder 📰
+          .feed-content
+            h3.feed-title
+              a(href=`/feed/${feed.id}`)= feed.title
+            p.feed-description= feed.description ? feed.description.substring(0, 100) + '...' : 'Pas de description'
+            .feed-meta
+              span.article-count= feed.articleCount + ' articles'
+              if feed.unreadCount > 0
+                span.unread-badge= feed.unreadCount + ' non lus'
+            .feed-actions
+              a.btn.btn-small(href=`/feed/${feed.id}`) Voir
+              button.btn.btn-small.btn-update(data-feed-id=feed.id) Actualiser
+              button.btn.btn-small.btn-danger.btn-delete(data-feed-id=feed.id) Supprimer
+  else
+    .empty-state
+      p Aucun flux pour le moment
+      p Commencez par ajouter un flux RSS ci-dessus

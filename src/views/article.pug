@@ -1,0 +1,54 @@
+extends layout
+
+block content
+  .article-page
+    .article-header
+      h1= article.title
+      .article-meta
+        if article.author
+          span.author= article.author
+        span.date= new Date(article.pubDate).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
+        span.feed
+          a(href=`/feed/${feed.id}`)= feed.title
+      .article-actions
+        if article.link
+          a.btn.btn-primary(href=article.link target="_blank") Lire l'article complet
+        button.btn.btn-secondary.btn-save(data-article-id=article.id data-saved=article.saved)
+          if article.saved
+            | ⭐ Sauvegardé
+          else
+            | ☆ Sauvegarder
+        a.btn.btn-secondary(href=`/feed/${feed.id}`) Retour au flux
+
+    if article.image
+      .article-image
+        img(src=article.image alt=article.title)
+
+    .article-content
+      != article.content || article.description
+
+    .article-footer
+      a.btn.btn-secondary(href=`/feed/${feed.id}`) Retour au flux
+
+block scripts
+  script.
+    document.querySelector('.btn-save').addEventListener('click', async () => {
+      const articleId = '#{article.id}';
+      const btn = document.querySelector('.btn-save');
+      try {
+        const response = await fetch(`/api/articles/${articleId}/toggle-saved`, { method: 'POST' });
+        const data = await response.json();
+        if (data.saved) {
+          btn.textContent = '⭐ Sauvegardé';
+          btn.classList.add('saved');
+        } else {
+          btn.textContent = '☆ Sauvegarder';
+          btn.classList.remove('saved');
+        }
+      } catch (error) {
+        alert('Erreur: ' + error.message);
+      }
+    });
+
+    // Marquer comme lu
+    fetch(`/api/articles/#{article.id}/read`, { method: 'POST' }).catch(console.error);
