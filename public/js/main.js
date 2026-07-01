@@ -299,14 +299,16 @@ function initRefreshBar() {
   if (!bar || !text || !progress || !details) return;
 
   var doneTimeout = null;
+  var failCount = 0;
 
   async function poll() {
     try {
       var res = await fetch('/api/refresh-status');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       var status = await res.json();
+      failCount = 0;
 
       if (status.isRefreshing) {
-        // En cours : afficher la barre
         if (doneTimeout) { clearTimeout(doneTimeout); doneTimeout = null; }
         bar.classList.remove('refresh-bar--done');
         bar.style.display = 'block';
@@ -319,12 +321,11 @@ function initRefreshBar() {
           return '<span class="refresh-result ' + (r.ok ? 'ok' : 'fail') + '">' + (r.ok ? '✅' : '❌') + ' ' + r.feedTitle + '</span>';
         }).join('');
       } else if (bar.style.display === 'block') {
-        // Terminé : afficher le résumé puis cacher
-        if (doneTimeout) return; // déjà en attente de fermeture
+        if (doneTimeout) return;
         var okCount = status.results.filter(function (r) { return r.ok; }).length;
-        var failCount = status.results.filter(function (r) { return !r.ok; }).length;
-        text.textContent = 'Rafraîchissement terminé : ' + okCount + ' OK' + (failCount > 0 ? ', ' + failCount + ' échec(s)' : '');
-        progress.textContent = '✅'.repeat(Math.min(okCount, 25)) + (failCount > 0 ? '❌'.repeat(Math.min(failCount, 10)) : '');
+        var failCountRes = status.results.filter(function (r) { return !r.ok; }).length;
+        text.textContent = 'Rafraîchissement terminé : ' + okCount + ' OK' + (failCountRes > 0 ? ', ' + failCountRes + ' échec(s)' : '');
+        progress.textContent = '✅'.repeat(Math.min(okCount, 25)) + (failCountRes > 0 ? '❌'.repeat(Math.min(failCountRes, 10)) : '');
         details.innerHTML = '';
         bar.classList.add('refresh-bar--done');
         doneTimeout = setTimeout(function () {
@@ -334,11 +335,15 @@ function initRefreshBar() {
         }, 4000);
       }
     } catch (err) {
-      // silencieux
+      failCount++;
+      // Si la barre est visible depuis + de 10 échecs consécutifs (~10s), la cacher
+      if (failCount > 10 && bar.style.display === 'block') {
+        bar.style.display = 'none';
+        failCount = 0;
+      }
     }
   }
 
-  // Poll toutes les secondes
   poll();
   setInterval(poll, 1000);
 }

@@ -42,9 +42,9 @@ const AUTH_PASS = process.env.AUTH_PASSWORD;
 
 if (AUTH_USER && AUTH_PASS) {
   app.addHook('onRequest', async (request, reply) => {
-    // Skip auth for static assets
+    // Skip auth for static assets and refresh-status API
     const url = request.url;
-    if (url.startsWith('/css/') || url.startsWith('/js/') || url.startsWith('/favicon') || url === '/sw.js') {
+    if (url.startsWith('/css/') || url.startsWith('/js/') || url.startsWith('/favicon') || url === '/sw.js' || url === '/api/refresh-status') {
       return;
     }
 
@@ -60,6 +60,16 @@ if (AUTH_USER && AUTH_PASS) {
       return reply.code(401).send({ error: 'Identifiants invalides' });
     }
   });
+  app.addHook('onSend', async (request, reply, payload) => {
+    // Désactiver le cache sur les pages HTML
+    if (reply.getHeader('content-type')?.toString().includes('text/html')) {
+      reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      reply.header('Pragma', 'no-cache');
+      reply.header('Expires', '0');
+    }
+    return payload;
+  });
+
   console.log('🔒 Basic Auth activé (' + AUTH_USER + ')');
 }
 

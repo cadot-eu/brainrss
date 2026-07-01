@@ -15,9 +15,6 @@ services:
       - 3000:3000
     environment:
       - NODE_ENV=development
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-brainrss}
     volumes:
       - ./data:/app/data # Persistance de la base SQLite
       - ./logs:/app/logs # Logs applicatifs
