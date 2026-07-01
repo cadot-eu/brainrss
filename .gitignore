@@ -4,4 +4,5 @@ data/cache/
 logs/
 .env
 *.zip
+*.opml
 .DS_Store

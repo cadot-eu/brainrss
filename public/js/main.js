@@ -357,8 +357,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initArticleCards('.articles-list');
   initScrollMarkRead();
   initArticleSearch();
-  initRefreshBar();
-
+  // Refresh bar is now triggered only by the nav button
   // Boutons spécifiques aux pages feeds
   document.querySelectorAll('.btn-update').forEach(function (btn) {
     btn.addEventListener('click', handleUpdateFeed);
@@ -376,24 +375,40 @@ document.addEventListener('DOMContentLoaded', function () {
   // Boutons Lire et Résumé IA sur les cartes article
   initArticleButtons();
 
+  // Détecter un refresh déjà en cours au chargement
+  (async function () {
+    try {
+      var res = await fetch('/api/refresh-status');
+      var status = await res.json();
+      if (status.isRefreshing) {
+        showToast('🔄 Rafraîchissement en cours...');
+        pollRefreshProgress({ disabled: false, textContent: '' }, true);
+      }
+    } catch (e) { /* ignore */ }
+  })();
+
   // Bouton refresh dans la nav
   var navRefreshBtn = document.getElementById('navRefreshBtn');
   if (navRefreshBtn) {
     navRefreshBtn.addEventListener('click', function () {
       if (this.disabled) return;
       this.disabled = true;
-      this.style.opacity = '0.5';
+      this.textContent = '⏳';
       fetch('/api/refresh-trigger', { method: 'POST' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (!data.success) alert(data.message);
-        })
-        .catch(function () { })
-        .finally(function () {
-          setTimeout(function () {
+          if (data.success) {
+            showToast('Rafraîchissement lancé...');
+            pollRefreshProgress(navRefreshBtn);
+          } else {
+            showToast(data.message);
             navRefreshBtn.disabled = false;
-            navRefreshBtn.style.opacity = '1';
-          }, 2000);
+            navRefreshBtn.textContent = '🔄';
+          }
+        })
+        .catch(function () {
+          navRefreshBtn.disabled = false;
+          navRefreshBtn.textContent = '🔄';
         });
     });
   }
@@ -450,28 +465,70 @@ async function handleDeleteFeed(e) {
 
 async function handleAddFeed(e) {
   e.preventDefault();
-  const form = e.currentTarget;
-  const url = form.querySelector('input').value;
-  const messageEl = document.getElementById('feedMessage');
-  const submitBtn = form.querySelector('button[type="submit"]');
+  var form = e.currentTarget;
+  var url = form.querySelector('input').value;
+  var messageEl = document.getElementById('feedMessage');
+  var submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Ajout en cours...';
   try {
-    const result = await API.addFeed(url);
+    var result = await API.addFeed(url);
     if (result.success) {
-      messageEl.innerHTML = `<p class="success">Flux "${result.feedTitle}" ajouté !</p>`;
+      messageEl.innerHTML = '<p class="success">Flux "' + result.feedTitle + '" ajouté !</p>';
       form.reset();
-      setTimeout(() => location.reload(), 1500);
+      setTimeout(function () { location.reload(); }, 1500);
     } else {
-      messageEl.innerHTML = `<p class="error">Erreur: ${result.error}</p>`;
+      messageEl.innerHTML = '<p class="error">Erreur: ' + result.error + '</p>';
       submitBtn.disabled = false;
       submitBtn.textContent = 'Ajouter';
     }
   } catch (error) {
-    messageEl.innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
+    messageEl.innerHTML = '<p class="error">Erreur: ' + error.message + '</p>';
     submitBtn.disabled = false;
     submitBtn.textContent = 'Ajouter';
   }
+}
+
+// ============================================================
+// Toast notification
+// ============================================================
+function showToast(msg) {
+  var existing = document.getElementById('toast');
+  if (existing) existing.remove();
+  var toast = document.createElement('div');
+  toast.id = 'toast';
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(function () { toast.classList.add('toast--visible'); }, 10);
+  setTimeout(function () {
+    toast.classList.remove('toast--visible');
+    setTimeout(function () { toast.remove(); }, 300);
+  }, 2500);
+}
+
+function pollRefreshProgress(btn, noBtn) {
+  var attempts = 0;
+  var interval = setInterval(async function () {
+    try {
+      var res = await fetch('/api/refresh-status');
+      var status = await res.json();
+      attempts++;
+
+      if (status.isRefreshing) {
+        showToast('🔄 ' + status.current + '/' + status.total + ' — ' + status.currentFeed);
+      } else {
+        clearInterval(interval);
+        var okCount = status.results.filter(function (r) { return r.ok; }).length;
+        var failCount = status.results.filter(function (r) { return !r.ok; }).length;
+        showToast('✅ ' + okCount + ' flux(s) mis à jour' + (failCount > 0 ? ', ❌ ' + failCount + ' échec(s)' : ''));
+        if (!noBtn) { btn.disabled = false; btn.textContent = '🔄'; }
+      }
+      if (attempts > 120) { clearInterval(interval); if (!noBtn) { btn.disabled = false; btn.textContent = '🔄'; } }
+    } catch (e) {
+      if (attempts > 10) { clearInterval(interval); if (!noBtn) { btn.disabled = false; btn.textContent = '🔄'; } }
+    }
+  }, 2000);
 }
 
 // ============================================================
