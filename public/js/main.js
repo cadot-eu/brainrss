@@ -370,6 +370,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Boutons Lire et Résumé IA sur les cartes article
   initArticleButtons();
+
+  // Bouton "Tout marquer comme lu"
+  var markAllBtn = document.getElementById('markAllReadBtn');
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', function () {
+      if (!confirm('Marquer tous les articles comme lus ?')) return;
+      this.disabled = true;
+      this.textContent = 'Patientez...';
+      fetch('/api/articles/mark-all-read', { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.success) location.reload();
+        })
+        .catch(function () {
+          location.reload();
+        });
+    });
+  }
 });
 
 async function handleUpdateFeed(e) {

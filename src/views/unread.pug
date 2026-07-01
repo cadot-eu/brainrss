@@ -2,7 +2,9 @@ extends layout
 
 block content
   .page-header
-    h2 Articles non lus
+    .page-header-row
+      h2 Articles non lus
+      button#markAllReadBtn.btn.btn-primary Tout marquer comme lu
     p= unreadCount + ' article(s) à lire'
 
   if articles.length > 0

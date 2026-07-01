@@ -290,6 +290,17 @@ export async function getUnreadCount() {
   }
 }
 
+export async function markAllAsRead() {
+  const db = getDatabase();
+  try {
+    const result = await db.run('UPDATE articles SET read = 1 WHERE read = 0');
+    return { success: true, count: result.changes || 0 };
+  } catch (error) {
+    console.error('Error marking all as read:', error);
+    throw new Error(`Failed to mark all as read: ${error.message}`);
+  }
+}
+
 export async function getSavedArticles(limit = 50) {
   const db = getDatabase();
 

@@ -1030,6 +1030,18 @@ a:hover {
   margin-bottom: var(--spacing-md);
 }
 
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+}
+
+.page-header-row h2 {
+  margin-bottom: 0;
+}
+
 .page-header p {
   color: var(--text-light);
   font-size: 1.1rem;

@@ -12,6 +12,7 @@ import {
   getUnreadArticlesWithPriority,
   getUnreadCount,
   getSavedArticles,
+  markAllAsRead,
   getFilters,
   addFilter,
   removeFilter
@@ -151,6 +152,16 @@ export async function registerRoutes(fastify) {
     try {
       const { id } = request.params;
       const result = await markArticleAsRead(id);
+      return reply.send(result);
+    } catch (error) {
+      return reply.code(400).send({ error: error.message });
+    }
+  });
+
+  // API: Tout marquer comme lu
+  fastify.post('/api/articles/mark-all-read', async (request, reply) => {
+    try {
+      const result = await markAllAsRead();
       return reply.send(result);
     } catch (error) {
       return reply.code(400).send({ error: error.message });
