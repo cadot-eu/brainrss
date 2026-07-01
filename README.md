@@ -25,6 +25,10 @@ cd brainrss
 # Set your DeepSeek API key (optional, for AI summaries)
 echo 'DEEPSEEK_API_KEY=sk-...' > .env
 
+# Set a password to protect the site (optional)
+echo 'AUTH_USERNAME=admin' >> .env
+echo 'AUTH_PASSWORD=mypassword' >> .env
+
 # Docker
 docker compose up -d
 
@@ -67,6 +71,10 @@ cd brainrss
 
 # Clé API DeepSeek (optionnel, pour les résumés IA)
 echo 'DEEPSEEK_API_KEY=sk-...' > .env
+
+# Protéger le site par mot de passe (optionnel)
+echo 'AUTH_USERNAME=admin' >> .env
+echo 'AUTH_PASSWORD=monmotdepasse' >> .env
 
 # Docker
 docker compose up -d

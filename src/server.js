@@ -36,6 +36,33 @@ await app.register(fastifyStatic, {
 // Enregistrer les routes
 await registerRoutes(app);
 
+// Protection par mot de passe (Basic Auth)
+const AUTH_USER = process.env.AUTH_USERNAME;
+const AUTH_PASS = process.env.AUTH_PASSWORD;
+
+if (AUTH_USER && AUTH_PASS) {
+  app.addHook('onRequest', async (request, reply) => {
+    // Skip auth for static assets
+    const url = request.url;
+    if (url.startsWith('/css/') || url.startsWith('/js/') || url.startsWith('/favicon') || url === '/sw.js') {
+      return;
+    }
+
+    const auth = request.headers.authorization;
+    if (!auth || !auth.startsWith('Basic ')) {
+      reply.header('WWW-Authenticate', 'Basic realm="BrainRSS"');
+      return reply.code(401).send({ error: 'Authentification requise' });
+    }
+
+    const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
+    if (user !== AUTH_USER || pass !== AUTH_PASS) {
+      reply.header('WWW-Authenticate', 'Basic realm="BrainRSS"');
+      return reply.code(401).send({ error: 'Identifiants invalides' });
+    }
+  });
+  console.log('🔒 Basic Auth activé (' + AUTH_USER + ')');
+}
+
 // Gestion des erreurs globale
 app.setErrorHandler((error, request, reply) => {
   app.log.error(error);
