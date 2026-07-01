@@ -8,9 +8,10 @@ A modern RSS reader with AI-powered summaries, keyword filtering, and content ex
 
 - 📰 **RSS feeds** — add, refresh, delete feeds
 - 🔍 **Search** — full-text or whole-word, case-insensitive
-- 🤖 **AI summaries** — DeepSeek V4 Flash bullet-point summaries in French (max 10 points, 3 lines each)
+- 🤖 **AI summaries** — DeepSeek V4 Flash bullet-point summaries in French, cached to disk for saved articles
 - 🏷️ **Priority filters** — boost or hide articles by keyword
-- 📖 **Content extraction** — Firefox Reader View style full article extraction
+- 📖 **Content extraction** — Firefox Reader View style, cached to disk for saved articles
+- 💾 **Disk cache** — saved articles' content & summaries persisted in `data/cache/`
 - ⭐ **Bookmarks** — save articles for later
 - 🎨 **Clean UI** — Pug templates, responsive design
 - 🐳 **Docker** — ready to deploy
@@ -56,9 +57,10 @@ Un lecteur RSS moderne avec résumés IA, filtres par mots-clés et extraction d
 
 - 📰 **Flux RSS** — ajouter, actualiser, supprimer
 - 🔍 **Recherche** — texte intégral ou mot entier, insensible à la casse
-- 🤖 **Résumés IA** — DeepSeek V4 Flash, résumé en français (max 10 points, 3 lignes chacun)
+- 🤖 **Résumés IA** — DeepSeek V4 Flash, résumé en français, caché sur disque pour articles sauvegardés
 - 🏷️ **Filtres de priorité** — booster ou masquer des articles par mot-clé
-- 📖 **Extraction de contenu** — article complet façon Firefox Reader View
+- 📖 **Extraction de contenu** — article complet, caché sur disque pour articles sauvegardés
+- 💾 **Cache disque** — contenu & résumés des articles sauvegardés dans `data/cache/`
 - ⭐ **Favoris** — sauvegarder pour plus tard
 - 🎨 **Interface propre** — templates Pug, responsive
 - 🐳 **Docker** — prêt à déployer

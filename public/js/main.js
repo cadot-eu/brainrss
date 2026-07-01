@@ -478,15 +478,41 @@ async function handleAddFeed(e) {
 // Boutons Lire / Résumé IA
 // ============================================================
 function initArticleButtons() {
-  // Bouton Lire : déclenche l'expansion de la card
+  // Bouton Lire : ouvre toujours la card
   document.querySelectorAll('.btn-read').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var articleId = this.dataset.articleId;
       var item = document.querySelector('.article-item[data-article-id="' + articleId + '"]');
-      if (item) {
-        item.click(); // réutilise le handler de clic existant
+      if (!item) return;
+
+      // Si déjà ouverte, ne pas refermer
+      var detail = document.querySelector('.article-detail[data-parent-id="' + articleId + '"]');
+      if (detail && !detail.querySelector('.article-detail-loader')) {
+        return; // déjà ouverte avec contenu
       }
+
+      // Fermer les autres cards ouvertes
+      document.querySelectorAll('.article-detail').forEach(function (d) { d.remove(); });
+      document.querySelectorAll('.article-item--open').forEach(function (i) { i.classList.remove('article-item--open'); });
+      hideFloatingStar();
+
+      // Ouvrir
+      item.classList.add('article-item--open');
+      var newDetail = document.createElement('div');
+      newDetail.className = 'article-detail';
+      newDetail.dataset.parentId = articleId;
+      newDetail.innerHTML = '<div class="article-detail-loader"><span class="spinner"></span> Chargement...</div>';
+      item.insertAdjacentElement('afterend', newDetail);
+
+      API.markArticleAsRead(articleId).catch(function () { });
+
+      API.getArticle(articleId).then(function (article) {
+        newDetail.innerHTML = buildDetailHTML(article);
+        showFloatingStar(articleId, article.saved === 1);
+      }).catch(function (err) {
+        newDetail.innerHTML = '<div class="article-detail-error">Erreur : ' + err.message + '</div>';
+      });
     });
   });
 
@@ -551,7 +577,8 @@ async function handleSummarize(articleId, btn) {
         .replace(/^- (.+)$/gm, '<li>$1</li>');
       summaryHtml = '<ul>' + summaryHtml + '</ul>';
       summaryHtml = summaryHtml.replace(/<\/li>\s*<li>/g, '</li><li>');
-      summaryBox.innerHTML = '<div class="article-summary-header">🤖 Résumé IA</div><div class="article-summary-content">' + summaryHtml + '</div>';
+      var cacheLabel = data.cached ? ' <span style="font-weight:normal;color:#999;font-size:0.8rem">(cache)</span>' : '';
+      summaryBox.innerHTML = '<div class="article-summary-header">🤖 Résumé IA' + cacheLabel + '</div><div class="article-summary-content">' + summaryHtml + '</div>';
     } else {
       summaryBox.innerHTML = '<div class="article-summary-error">Erreur: ' + (data.error || 'inconnue') + '</div>';
     }

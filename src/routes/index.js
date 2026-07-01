@@ -20,6 +20,7 @@ import {
 import { getDatabase } from '../db/database.js';
 import { refreshStatus } from '../lib/refreshStatus.js';
 import { refreshAllFeeds } from '../server.js';
+import { getCachedArticle, setCachedArticle, getCachedSummary, setCachedSummary } from '../lib/cache.js';
 
 export async function registerRoutes(fastify) {
   // Page d'accueil
@@ -205,22 +206,30 @@ export async function registerRoutes(fastify) {
     // Marquer comme lu automatiquement
     await markArticleAsRead(id);
 
-    // Si le contenu est trop court, extraire l'article complet depuis l'URL
-    const isShort = !article.content ||
-      article.content.length < 500 ||
-      article.content === article.description;
+    // Chercher dans le cache ou extraire le contenu complet
+    const cached = getCachedArticle(id);
+    if (cached) {
+      article.content = cached;
+    } else {
+      const isShort = !article.content ||
+        article.content.length < 500 ||
+        article.content === article.description;
 
-    if (isShort && article.link) {
-      try {
-        const { extractArticleContent } = await import('../lib/contentExtractor.js');
-        const extracted = await extractArticleContent(article.link);
-        if (extracted && extracted.content) {
-          const db = getDatabase();
-          await db.run('UPDATE articles SET content = ? WHERE id = ?', [extracted.content, id]);
-          article.content = extracted.content;
+      if (isShort && article.link) {
+        try {
+          const { extractArticleContent } = await import('../lib/contentExtractor.js');
+          const extracted = await extractArticleContent(article.link);
+          if (extracted && extracted.content) {
+            article.content = extracted.content;
+            // Sauvegarder seulement si l'article est sauvegardé
+            if (article.saved) setCachedArticle(id, extracted.content);
+          }
+        } catch (err) {
+          request.log.warn('Extraction echouee pour ' + article.link + ': ' + err.message);
         }
-      } catch (err) {
-        request.log.warn('Extraction echouee pour ' + article.link + ': ' + err.message);
+      } else if (!isShort && article.saved) {
+        // Contenu déjà complet + article sauvegardé → cache
+        setCachedArticle(id, article.content);
       }
     }
 
@@ -277,20 +286,36 @@ export async function registerRoutes(fastify) {
         return reply.code(404).send({ error: 'Article not found' });
       }
 
-      // Extraire le contenu complet si nécessaire
-      let content = article.content || article.description;
-      if ((!content || content.length < 500) && article.link) {
-        try {
-          const { extractArticleContent } = await import('../lib/contentExtractor.js');
-          const extracted = await extractArticleContent(article.link);
-          if (extracted && extracted.content) {
-            content = extracted.content;
-          }
-        } catch (_) { /* tant pis, on utilise ce qu'on a */ }
+      // 1. Vérifier le cache résumé
+      const cachedSummary = getCachedSummary(id);
+      if (cachedSummary) {
+        return reply.send({ success: true, summary: cachedSummary, cached: true });
       }
 
+      // 2. Récupérer le contenu (cache ou extraction)
+      let content = article.content || article.description;
+      if ((!content || content.length < 500) && article.link) {
+        const cachedContent = getCachedArticle(id);
+        if (cachedContent) {
+          content = cachedContent;
+        } else {
+          try {
+            const { extractArticleContent } = await import('../lib/contentExtractor.js');
+            const extracted = await extractArticleContent(article.link);
+            if (extracted && extracted.content) {
+              content = extracted.content;
+              setCachedArticle(id, extracted.content);
+            }
+          } catch (_) { /* tant pis */ }
+        }
+      }
+
+      // 3. Appeler l'IA
       const { summarizeArticle } = await import('../lib/aiSummarizer.js');
       const summary = await summarizeArticle(article.title, content);
+
+      // 4. Sauvegarder dans le cache (seulement si article sauvegardé)
+      if (article.saved) setCachedSummary(id, summary);
 
       return reply.send({ success: true, summary });
     } catch (error) {
