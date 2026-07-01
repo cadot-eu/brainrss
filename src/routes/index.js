@@ -19,6 +19,7 @@ import {
 } from '../lib/rssManager.js';
 import { getDatabase } from '../db/database.js';
 import { refreshStatus } from '../lib/refreshStatus.js';
+import { refreshAllFeeds } from '../server.js';
 
 export async function registerRoutes(fastify) {
   // Page d'accueil
@@ -255,6 +256,16 @@ export async function registerRoutes(fastify) {
   // API: Statut du refresh en cours (affichage temps réel)
   fastify.get('/api/refresh-status', async (request, reply) => {
     return reply.send(refreshStatus);
+  });
+
+  // API: Déclencher un rafraîchissement manuel
+  fastify.post('/api/refresh-trigger', async (request, reply) => {
+    if (refreshStatus.isRefreshing) {
+      return reply.send({ success: false, message: 'Rafraîchissement déjà en cours' });
+    }
+    // Lancer en arrière-plan
+    refreshAllFeeds().catch(err => console.error('Refresh error:', err));
+    return reply.send({ success: true, message: 'Rafraîchissement lancé' });
   });
 
   // API: Résumé IA d'un article

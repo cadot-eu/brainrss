@@ -103,6 +103,22 @@ a:hover {
   padding-bottom: var(--spacing-xs);
 }
 
+.btn-refresh-nav {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  transition: var(--transition);
+  line-height: 1;
+}
+
+.btn-refresh-nav:hover {
+  background: #e55a2b;
+}
+
 .nav-main a:hover {
   color: var(--primary-color);
 }

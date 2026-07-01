@@ -376,6 +376,28 @@ document.addEventListener('DOMContentLoaded', function () {
   // Boutons Lire et Résumé IA sur les cartes article
   initArticleButtons();
 
+  // Bouton refresh dans la nav
+  var navRefreshBtn = document.getElementById('navRefreshBtn');
+  if (navRefreshBtn) {
+    navRefreshBtn.addEventListener('click', function () {
+      if (this.disabled) return;
+      this.disabled = true;
+      this.style.opacity = '0.5';
+      fetch('/api/refresh-trigger', { method: 'POST' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.success) alert(data.message);
+        })
+        .catch(function () { })
+        .finally(function () {
+          setTimeout(function () {
+            navRefreshBtn.disabled = false;
+            navRefreshBtn.style.opacity = '1';
+          }, 2000);
+        });
+    });
+  }
+
   // Bouton "Tout marquer comme lu"
   var markAllBtn = document.getElementById('markAllReadBtn');
   if (markAllBtn) {

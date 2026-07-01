@@ -91,7 +91,7 @@ signals.forEach(signal => {
 });
 
 // Rafraichit tous les flux en arriere-plan
-async function refreshAllFeeds() {
+export async function refreshAllFeeds() {
   if (refreshStatus.isRefreshing) return; // déjà en cours
 
   const feeds = await getAllFeeds();
