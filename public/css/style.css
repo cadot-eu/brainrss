@@ -1165,12 +1165,46 @@ a:hover {
   border-color: #f5c518;
 }
 
+.floating-close {
+  position: fixed;
+  right: 20px;
+  top: calc(50% + 62px);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 200;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  color: #999;
+}
+
+.floating-close:hover {
+  transform: scale(1.1);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
 @media (max-width: 768px) {
   .floating-star {
     right: 10px;
     width: 44px;
     height: 44px;
     font-size: 1.5rem;
+  }
+
+  .floating-close {
+    right: 10px;
+    top: calc(50% + 54px);
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
   }
 }
 

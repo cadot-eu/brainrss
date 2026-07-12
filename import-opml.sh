@@ -10,7 +10,13 @@
 # ============================================================
 
 # Configuration
-HOST="${BRAINRSS_HOST:-http://localhost:3000}"
+HOST_EXPLICIT=0
+if [[ -n "${BRAINRSS_HOST:-}" ]]; then
+    HOST="$BRAINRSS_HOST"
+    HOST_EXPLICIT=1
+else
+    HOST="http://localhost:3000"
+fi
 OPML_FILE=""
 
 # Fonction d'aide
@@ -39,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --host)
             HOST="$2"
+            HOST_EXPLICIT=1
             shift 2
             ;;
         -h|--help)
@@ -70,14 +77,78 @@ else
     OPML_CONTENT=$(cat "$OPML_FILE")
 fi
 
-# Vérifier que le serveur est accessible
+# ============================================================
+# Auto-détection du serveur BrainRSS via Docker
+# ============================================================
+auto_detect_host() {
+    local detected_ip
+
+    # Méthode 1: docker inspect sur le container nommé "brainrss"
+    detected_ip=$(docker inspect brainrss 2>/dev/null | \
+        sed -n '/"IPAddress"/{s/.*"IPAddress": "\([^"]*\)".*/\1/p;q}')
+    if [[ -n "$detected_ip" ]] && [[ "$detected_ip" != "0.0.0.0" ]] && [[ "$detected_ip" != "" ]]; then
+        HOST="http://$detected_ip:3000"
+        return 0
+    fi
+
+    # Méthode 2: docker compose (si lancé depuis le dossier du projet)
+    local cid
+    cid=$(docker compose ps -q brainrss 2>/dev/null | head -1)
+    if [[ -n "$cid" ]]; then
+        detected_ip=$(docker inspect "$cid" 2>/dev/null | \
+            sed -n '/"IPAddress"/{s/.*"IPAddress": "\([^"]*\)".*/\1/p;q}')
+        if [[ -n "$detected_ip" ]] && [[ "$detected_ip" != "0.0.0.0" ]] && [[ "$detected_ip" != "" ]]; then
+            HOST="http://$detected_ip:3000"
+            return 0
+        fi
+    fi
+
+    # Méthode 3: chercher tout container dont l'image contient "brainrss"
+    detected_ip=$(docker ps --filter "name=brainrss" --format '{{.ID}}' 2>/dev/null | head -1 | \
+        xargs -r docker inspect 2>/dev/null | \
+        sed -n '/"IPAddress"/{s/.*"IPAddress": "\([^"]*\)".*/\1/p;q}')
+    if [[ -n "$detected_ip" ]] && [[ "$detected_ip" != "0.0.0.0" ]] && [[ "$detected_ip" != "" ]]; then
+        HOST="http://$detected_ip:3000"
+        return 0
+    fi
+
+    return 1
+}
+
+# Vérifier que le serveur est accessible (avec auto-détection si nécessaire)
+check_connectivity() {
+    local host_to_check="$1"
+    if curl -sf -o /dev/null --connect-timeout 3 "$host_to_check/api/feeds" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
 echo "→ Vérification de la connexion à $HOST ..."
-if ! curl -sf -o /dev/null "$HOST/api/feeds" 2>/dev/null; then
+
+if check_connectivity "$HOST"; then
+    echo "  ✓ Serveur accessible ($HOST)"
+elif [[ "$HOST_EXPLICIT" -eq 0 ]]; then
+    echo "  ⚠ $HOST inaccessible, tentative d'auto-détection Docker..."
+    if auto_detect_host; then
+        echo "  → Nouvelle tentative sur $HOST ..."
+        if check_connectivity "$HOST"; then
+            echo "  ✓ Serveur accessible via Docker ($HOST)"
+        else
+            echo "Erreur: Impossible de joindre le serveur BrainRSS à $HOST"
+            echo "       Vérifiez que le container est bien lancé et que l'API répond."
+            exit 1
+        fi
+    else
+        echo "Erreur: Aucun container brainrss trouvé dans Docker."
+        echo "       Lancez l'application avec 'docker compose up -d' ou 'npm run dev'"
+        exit 1
+    fi
+else
     echo "Erreur: Impossible de joindre le serveur BrainRSS à $HOST"
-    echo "       Lancez l'application avec 'docker compose up -d' ou 'npm run dev'"
+    echo "       Vérifiez l'URL ou lancez l'application."
     exit 1
 fi
-echo "  ✓ Serveur accessible"
 
 # Extraire les flux de l'OPML
 echo "→ Analyse du fichier OPML ..."

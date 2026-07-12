@@ -72,17 +72,50 @@ function createFloatingStar() {
   }
 }
 
+function createFloatingClose() {
+  try {
+    if (document.getElementById('floating-close')) return;
+
+    var btn = document.createElement('button');
+    btn.id = 'floating-close';
+    btn.className = 'floating-close';
+    btn.title = 'Fermer l\'article';
+    btn.innerHTML = '✕';
+    btn.style.display = 'none';
+    document.body.appendChild(btn);
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      // Fermer toutes les cards articles/résumés ouvertes
+      document.querySelectorAll('.article-detail').forEach(function (d) { d.remove(); });
+      document.querySelectorAll('.article-item--open').forEach(function (i) { i.classList.remove('article-item--open'); });
+      hideFloatingStar();
+    });
+    console.log('[BrainRSS] floating close created');
+  } catch (err) {
+    console.error('[BrainRSS] createFloatingClose error:', err);
+  }
+}
+
 function showFloatingStar(articleId, saved) {
   const btn = document.getElementById('floating-star');
   if (!btn) return;
   btn.dataset.articleId = articleId;
   updateFloatingStar(saved);
   btn.style.display = 'flex';
+  showFloatingClose();
 }
 
 function hideFloatingStar() {
   const btn = document.getElementById('floating-star');
   if (btn) btn.style.display = 'none';
+  const closeBtn = document.getElementById('floating-close');
+  if (closeBtn) closeBtn.style.display = 'none';
+}
+
+function showFloatingClose() {
+  const btn = document.getElementById('floating-close');
+  if (btn) btn.style.display = 'flex';
 }
 
 function updateFloatingStar(saved) {
@@ -354,6 +387,7 @@ function initRefreshBar() {
 document.addEventListener('DOMContentLoaded', function () {
   console.log('[BrainRSS] DOM ready, initializing...');
   createFloatingStar();
+  createFloatingClose();
   initArticleCards('.articles-list');
   initScrollMarkRead();
   initArticleSearch();
@@ -591,34 +625,37 @@ async function handleSummarize(articleId, btn) {
   btn.disabled = true;
   btn.textContent = '⏳...';
 
-  // Ouvrir la card si pas déjà ouverte (ou si encore en loader)
-  var detail = document.querySelector('.article-detail[data-parent-id="' + articleId + '"]');
-  if (!detail || detail.querySelector('.article-detail-loader')) {
-    item.click();
-    // Attendre que l'article soit complètement chargé (max 30s)
-    for (var i = 0; i < 60; i++) {
-      await new Promise(function (r) { setTimeout(r, 500); });
-      detail = document.querySelector('.article-detail[data-parent-id="' + articleId + '"]');
-      if (detail && !detail.querySelector('.article-detail-loader')) break;
-    }
-    if (!detail || detail.querySelector('.article-detail-loader')) {
-      btn.disabled = false;
-      btn.textContent = originalText;
-      return;
-    }
-  }
+  // Toujours créer une card fraîche "résumé seul" :
+  // on ferme toute card existante (y compris celle d'un article complet),
+  // puis on ouvre une card légère qui ne contiendra QUE le résumé IA.
+  document.querySelectorAll('.article-detail').forEach(function (d) { d.remove(); });
+  document.querySelectorAll('.article-item--open').forEach(function (i) { i.classList.remove('article-item--open'); });
+  hideFloatingStar();
+
+  item.classList.add('article-item--open');
+  var detail = document.createElement('div');
+  detail.className = 'article-detail article-detail--summary-only';
+  detail.dataset.parentId = articleId;
+  detail.innerHTML = '<button class="article-detail-close" title="Fermer">&times;</button>';
+  item.insertAdjacentElement('afterend', detail);
+
+  // Handler pour le bouton fermer
+  detail.querySelector('.article-detail-close').addEventListener('click', function (e) {
+    e.stopPropagation();
+    detail.remove();
+    item.classList.remove('article-item--open');
+    hideFloatingStar();
+  });
+
+  // Afficher le bouton flottant de fermeture
+  showFloatingClose();
 
   // Ajouter ou remplacer la section résumé
   var summaryBox = detail.querySelector('.article-summary');
   if (!summaryBox) {
     summaryBox = document.createElement('div');
     summaryBox.className = 'article-summary';
-    var body = detail.querySelector('.article-detail-body');
-    if (body) {
-      body.insertAdjacentElement('beforebegin', summaryBox);
-    } else {
-      detail.appendChild(summaryBox);
-    }
+    detail.appendChild(summaryBox);
   }
 
   summaryBox.innerHTML = '<div class="article-summary-loader"><span class="spinner"></span> Résumé en cours de création...</div>';
