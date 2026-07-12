@@ -19,6 +19,10 @@ else
 fi
 OPML_FILE=""
 
+# Mode d'appel à l'API : "direct" (curl depuis l'hôte) ou "docker" (docker exec)
+API_MODE="direct"
+DOCKER_CONTAINER="brainrss"
+
 # Fonction d'aide
 usage() {
     cat <<EOF
@@ -124,6 +128,34 @@ check_connectivity() {
     return 1
 }
 
+# Vérifier que le container brainrss existe et tourne
+docker_container_exists() {
+    docker inspect "$DOCKER_CONTAINER" --format '{{.State.Running}}' 2>/dev/null | grep -q true
+}
+
+# Appeler l'API BrainRSS (abstraction direct / docker exec)
+# Usage: api_call <method> <path> <data_json>
+# Retour: stdout = réponse, exit code = 0 si OK
+api_call() {
+    local method="$1"
+    local path="$2"
+    local data="$3"
+
+    if [[ "$API_MODE" == "docker" ]]; then
+        docker exec "$DOCKER_CONTAINER" curl -s --connect-timeout 10 --max-time 30 \
+            -w '\n%{http_code}' -X "$method" \
+            "http://localhost:3000$path" \
+            -H 'Content-Type: application/json' \
+            -d "$data" 2>/dev/null
+    else
+        curl -s --connect-timeout 10 --max-time 30 \
+            -w '\n%{http_code}' -X "$method" \
+            "$HOST$path" \
+            -H 'Content-Type: application/json' \
+            -d "$data" 2>&1
+    fi
+}
+
 echo "→ Vérification de la connexion à $HOST ..."
 
 if check_connectivity "$HOST"; then
@@ -134,9 +166,28 @@ elif [[ "$HOST_EXPLICIT" -eq 0 ]]; then
         echo "  → Nouvelle tentative sur $HOST ..."
         if check_connectivity "$HOST"; then
             echo "  ✓ Serveur accessible via Docker ($HOST)"
+        elif docker_container_exists; then
+            echo "  → IP Docker inaccessible, tentative via 'docker exec $DOCKER_CONTAINER' ..."
+            if docker exec "$DOCKER_CONTAINER" curl -sf -o /dev/null --connect-timeout 3 "http://localhost:3000/api/feeds" 2>/dev/null; then
+                echo "  ✓ Serveur accessible (mode docker exec)"
+                API_MODE="docker"
+            else
+                echo "Erreur: Impossible de joindre l'API même depuis l'intérieur du container."
+                exit 1
+            fi
         else
             echo "Erreur: Impossible de joindre le serveur BrainRSS à $HOST"
             echo "       Vérifiez que le container est bien lancé et que l'API répond."
+            exit 1
+        fi
+    elif docker_container_exists; then
+        echo "  ⚠ Aucune IP trouvée, tentative via 'docker exec $DOCKER_CONTAINER' ..."
+        if docker exec "$DOCKER_CONTAINER" curl -sf -o /dev/null --connect-timeout 3 "http://localhost:3000/api/feeds" 2>/dev/null; then
+            echo "  ✓ Serveur accessible (mode docker exec)"
+            API_MODE="docker"
+        else
+            echo "Erreur: Aucun moyen de joindre le serveur BrainRSS."
+            echo "       Lancez l'application avec 'docker compose up -d' ou 'npm run dev'"
             exit 1
         fi
     else
@@ -226,13 +277,10 @@ for i in $(seq 0 $((TOTAL - 1))); do
     json_url=$(echo "$url" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
     # Appeler l'API
-    response=$(curl -s --connect-timeout 10 --max-time 30 \
-        -w '\n%{http_code}' -X POST "$HOST/api/feeds" \
-        -H 'Content-Type: application/json' \
-        -d "{\"url\": \"$json_url\"}" 2>&1) || {
+    response=$(api_call POST "/api/feeds" "{\"url\": \"$json_url\"}") || {
         echo "✗ Échec réseau"
         FAILED=$((FAILED + 1))
-        ERRORS+=("$title: échec réseau (curl)")
+        ERRORS+=("$title: échec réseau")
         continue
     }
 
